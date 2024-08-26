@@ -1,48 +1,63 @@
 // SPDX-License-Identifier: MIT
-// Compatible with OpenZeppelin Contracts v5.0.0
-pragma solidity ^0.8.20;
+pragma solidity >0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract MyToken is ERC20, ERC20Burnable, Ownable {
-    string[] private items;
-    event redeemLog(string RedeemMessage);
+contract DegenToken is ERC20 {
+    address private owner;
+    string[2] private items = ["NFT", "Ghost-Skin"];
+    uint[2] private prices = [1000, 500];
+    mapping(address => string[]) private ownedAssets;
+
+    event Mint(address indexed to, uint256 value);
+    event Burn(address indexed from, uint256 value);
+    event Redeem(address indexed from, string item, uint256 price);
+
+    constructor() ERC20("Degen", "DGN") {
+        owner = msg.sender;
+    }
+
+    modifier onlyOwner() {
+        require(owner == msg.sender, "Only owner can access");
+        _;
+    }
+
+    function mintTo(address _to, uint256 _val) public onlyOwner() {
+        _mint(_to, _val);
+        emit Mint(_to, _val);
+    }
+
+    function burnFrom(uint256 _val) public {
+        _burn(msg.sender, _val);
+        emit Burn(msg.sender, _val);
+    }
+
+    function redeem(uint256 _item) public {
+        require(_item > 0 && _item <= items.length, "Item index out of bounds");
+        uint256 price = prices[_item - 1];
+        _burn(msg.sender, price);
+        ownedAssets[msg.sender].push(items[_item - 1]);
+        emit Redeem(msg.sender, items[_item - 1], price);
+    }
+
+    function transferTo(address _to, uint256 _val) public {
+        _transfer(msg.sender, _to, _val);
+    }
+
+    function getOwnedAssets(address _owner) public view returns (string[] memory) {
+        return ownedAssets[_owner];
+    }
+
+    function getAvailableItems() public view returns (string[] memory, uint256[] memory) {
     
-    constructor(address initialOwner)          
-    ERC20("Degen", "DGN")
-    Ownable(initialOwner){
-        items.push("1. NFT");
-        items.push("2. Ghost-Skin");
-    }
-// string[] private items;
-   function decimals() public view virtual override returns (uint8) {
-        return 0;
-    }
-    function mint(address to, uint256 amount) public onlyOwner {
-        _mint(to, amount);
-    }
+        string[] memory itemsArray = new string[](items.length);
+        uint256[] memory pricesArray = new uint256[](prices.length);
 
-    
-
-   function itemList() external view returns (string[] memory) {
-    return items;
-   }
-    function redeemItem(uint8 itemCode) external {
-        uint256 valueOfNFT = 100;
-        uint256 valueOfGhostSkin = 250;
-        require(balanceOf(msg.sender)>100);
-        if (itemCode == 1) {
-              _transfer(msg.sender, owner(), valueOfNFT);
-              emit redeemLog("Woah! Congratulations you have purchased NFT worth 100 AVAX!");
+        for (uint256 i = 0; i < items.length; i++) {
+            itemsArray[i] = items[i];
+            pricesArray[i] = prices[i];
         }
-        else if(itemCode == 2) {
-            _transfer(msg.sender, owner(), valueOfGhostSkin);
-            emit redeemLog("Whoohoo! You purchased Ghost Skin worth 250 AVAX!");
-        }
-        
+
+        return (itemsArray, pricesArray);
     }
-
-
 }
